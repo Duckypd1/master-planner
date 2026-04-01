@@ -1,0 +1,44 @@
+{
+  "sidebar": {
+    "macro": "Góc nhìn Năm",
+    "planning": "Góc nhìn Tháng",
+    "action": "Góc nhìn Tuần",
+    "focus": "Góc nhìn Ngày",
+    "settings": "Cài đặt"
+  },
+  "actionView": {
+    "title": "Góc nhìn Tuần",
+    "newTask": "+ Thêm công việc",
+    "autoSchedule": "Tự động xếp lịch",
+    "timelineTitle": "Dòng thời gian hôm nay",
+    "scheduled": "đã xếp lịch",
+    "fixed": "Cố định",
+    "flexible": "Linh hoạt",
+    "autoScheduled": "Tự động xếp lịch",
+    "dailyProgress": "Tiến độ trong ngày",
+    "completed": "Đã xong",
+    "inProgress": "Đang làm",
+    "pending": "Chưa làm",
+    "triageInbox": "Hộp chờ Triage",
+    "new": "Mới",
+    "triageDesc": "Các công việc linh hoạt chưa được phân bổ vào ma trận.",
+    "est": "Ước tính",
+    "openMatrix": "Mở Ma trận Eisenhower",
+    "unschedule": "Gỡ lịch",
+    "delete": "Xóa",
+    "undo": "Hoàn tác",
+    "taskDeleted": "Đã chuyển vào thùng rác",
+    "deleteRecurringTitle": "Xóa công việc lặp lại",
+    "deleteRecurringDesc": "Đây là một công việc lặp lại định kỳ. Bạn muốn xóa như thế nào?",
+    "deleteThisInstance": "Chỉ sự kiện này",
+    "deleteAllFuture": "Tất cả sự kiện tương lai",
+    "cancel": "Hủy"
+  },
+  "tasks": {
+    "teamSync": "Họp đồng bộ Nhóm",
+    "designMockups": "Thiết kế giao diện UI",
+    "writeDocs": "Viết tài liệu API",
+    "reviewQ1": "Đánh giá báo cáo Q1",
+    "bookFlights": "Đặt vé máy bay đi hội nghị"
+  }
+}

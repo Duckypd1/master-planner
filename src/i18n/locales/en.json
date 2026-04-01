@@ -1,0 +1,44 @@
+{
+  "sidebar": {
+    "macro": "Macro View",
+    "planning": "Planning View",
+    "action": "Action View",
+    "focus": "Focus View",
+    "settings": "Settings"
+  },
+  "actionView": {
+    "title": "Action View",
+    "newTask": "+ New Task",
+    "autoSchedule": "Auto-Schedule",
+    "timelineTitle": "Today's Timeline",
+    "scheduled": "scheduled",
+    "fixed": "Fixed",
+    "flexible": "Flexible",
+    "autoScheduled": "Auto-scheduled",
+    "dailyProgress": "Daily Progress",
+    "completed": "Completed",
+    "inProgress": "In Progress",
+    "pending": "Pending",
+    "triageInbox": "Triage Inbox",
+    "new": "New",
+    "triageDesc": "Unscheduled flexible tasks waiting for matrix assignment.",
+    "est": "Est.",
+    "openMatrix": "Open Eisenhower Matrix",
+    "unschedule": "Un-schedule",
+    "delete": "Delete",
+    "undo": "Undo",
+    "taskDeleted": "Task moved to trash",
+    "deleteRecurringTitle": "Delete Recurring Task",
+    "deleteRecurringDesc": "This is a repeating task. How would you like to delete it?",
+    "deleteThisInstance": "This instance only",
+    "deleteAllFuture": "All future events",
+    "cancel": "Cancel"
+  },
+  "tasks": {
+    "teamSync": "Team Sync Meeting",
+    "designMockups": "Design UI Mockups",
+    "writeDocs": "Write API Documentation",
+    "reviewQ1": "Review Q1 Report",
+    "bookFlights": "Book flights for conference"
+  }
+}
