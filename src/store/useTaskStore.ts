@@ -101,32 +101,49 @@ export const useTaskStore = create<TaskState>()(
       tasks: [], settings: { soundEnabled: true, activeTheme: 'default', activeSound: 'default', pomodoroWork: 25, pomodoroBreak: 5, categories: [], telegramWebhook: '', telegramToken: '' },
       userStats: INITIAL_USER_STATS, floatingTexts: [],
 
-      // 👇 ĐÃ FIX: TRANG BỊ HỆ THỐNG BÁO LỖI ĐỂ KHÔNG BỊ "RỚT MẠNG" NGẦM NỮA
-      _syncTask: async (task: any) => { 
-        const uId = get().user?.id; 
-        if (uId) {
-          const { error } = await supabase.from('tasks').upsert({ ...task, user_id: uId }); 
-          if (error) console.error("❌ Lỗi không đẩy được Task lên Mây:", error);
-        }
-      },
-      _syncStats: async () => { 
-        const uId = get().user?.id; 
-        if (uId) {
-          const { error } = await supabase.from('user_stats').upsert({ user_id: uId, stats_json: get().userStats }); 
-          if (error) console.error("❌ Lỗi không đẩy được Stats lên Mây:", error);
-        }
-      },
+      _syncTask: async (task: any) => { const uId = get().user?.id; if (uId) await supabase.from('tasks').upsert({ ...task, user_id: uId }); },
+      _syncStats: async () => { const uId = get().user?.id; if (uId) await supabase.from('user_stats').upsert({ user_id: uId, stats_json: get().userStats }); },
 
+      // 👇 ĐÃ FIX: THUẬT TOÁN SMART MERGE CHỐNG MẤT DỮ LIỆU KHI F5
       initializeSupabaseSync: async (userId) => {
         if (!userId) return;
         const { data: tData } = await supabase.from('tasks').select('*').eq('user_id', userId);
         const { data: sData } = await supabase.from('user_stats').select('*').eq('user_id', userId).single();
         const { data: setData } = await supabase.from('user_settings').select('*').eq('user_id', userId).single();
         
+        const localTasks = get().tasks;
+
         if (tData && tData.length > 0) {
-          set({ tasks: tData });
-        } else if (get().tasks.length > 0) {
-          const tasksWithUserId = get().tasks.map(t => ({ ...t, user_id: userId }));
+          if (localTasks.length === 0) {
+            set({ tasks: tData });
+          } else {
+            // Chống đè dữ liệu: Giữ nguyên Local làm gốc, chỉ thêm vào các task từ mây nếu Local thiếu
+            const mergedTasks = [...localTasks];
+            let needsCloudUpdate = false;
+
+            tData.forEach(cloudTask => {
+              const localIndex = mergedTasks.findIndex(t => t.id === cloudTask.id);
+              if (localIndex === -1) {
+                mergedTasks.push(cloudTask);
+              } else {
+                // Nếu Cloud đang lưu là 0% nhưng dưới máy tính đã là 100%, 
+                // Không được đè bản Cloud xuống, mà phải đánh dấu để đẩy bản Local lên lại!
+                if (mergedTasks[localIndex].progress !== cloudTask.progress || mergedTasks[localIndex].completedAt !== cloudTask.completedAt) {
+                  needsCloudUpdate = true;
+                }
+              }
+            });
+
+            set({ tasks: mergedTasks });
+
+            // Ép Mây phải cập nhật lại theo máy tính nếu phát hiện Mây bị "trễ"
+            if (needsCloudUpdate) {
+              const tasksToSync = mergedTasks.map(t => ({ ...t, user_id: userId }));
+              supabase.from('tasks').upsert(tasksToSync).then();
+            }
+          }
+        } else if (localTasks.length > 0) {
+          const tasksWithUserId = localTasks.map(t => ({ ...t, user_id: userId }));
           await supabase.from('tasks').upsert(tasksWithUserId);
         }
 
@@ -137,7 +154,7 @@ export const useTaskStore = create<TaskState>()(
         }
 
         if (setData?.settings_json) {
-          set({ settings: setData.settings_json });
+          set({ settings: { ...get().settings, ...setData.settings_json } });
         }
       },
 
@@ -200,16 +217,12 @@ export const useTaskStore = create<TaskState>()(
         return { success: true, message: `Điểm danh thành công! +${rewardCoins} xu.` };
       },
 
-      // 👇 ĐÃ FIX: CHỐT HẠ ĐỒNG BỘ MỖI KHI BẤM HOÀN THÀNH
       toggleTaskCompletion: (id, x, y) => {
         let syncedTask: Task | null = null;
         set((state) => {
           const task = state.tasks.find(t => t.id === id);
           if (!task) return state;
-          
           const newProgress = task.progress === 100 ? 0 : 100;
-          const newCompletedAt = newProgress === 100 ? new Date().toISOString() : undefined;
-          
           let ns = { ...state.userStats };
           let ftText = '';
 
@@ -222,7 +235,7 @@ export const useTaskStore = create<TaskState>()(
             ftText = `+${finalLp} LP / +${finalCoins} 🪙`;
           }
           
-          syncedTask = { ...task, progress: newProgress, completedAt: newCompletedAt };
+          syncedTask = { ...task, progress: newProgress };
           
           return { 
             tasks: state.tasks.map(t => t.id === id ? syncedTask! : t), 
@@ -241,19 +254,28 @@ export const useTaskStore = create<TaskState>()(
       mergePets: (consumedPetIds) => {
         const state = get();
         let currentOwned = [...state.userStats.ownedPets];
+        
         if (consumedPetIds.length !== 5) return { success: false, message: "❌ Báo lỗi: Cần nạp đủ 5 phôi!" };
+
         const firstPetRarity = getPetRarity(consumedPetIds[0]);
-        for (const pId of consumedPetIds) if (getPetRarity(pId) !== firstPetRarity) return { success: false, message: "❌ Lò luyện yêu cầu 5 linh thú phải CÙNG CẤP ĐỘ!" };
+
+        for (const pId of consumedPetIds) {
+          if (getPetRarity(pId) !== firstPetRarity) return { success: false, message: "❌ Lò luyện yêu cầu 5 linh thú phải CÙNG CẤP ĐỘ!" };
+        }
+
         const nextRarity = getNextRarity(firstPetRarity);
         if (!nextRarity) return { success: false, message: "❌ Linh thú Huyền Thoại đã đạt cảnh giới tối cao, không thể luyện hóa thêm!" };
+
         for (const pId of consumedPetIds) {
           const idx = currentOwned.indexOf(pId);
           if (idx > -1) currentOwned.splice(idx, 1);
           else return { success: false, message: "❌ Lỗi: Phôi thú không tồn tại trong kho!" };
         }
+
         let successRate = firstPetRarity === 'common' ? 0.50 : firstPetRarity === 'rare' ? 0.30 : 0.10; 
         const isSuccess = Math.random() < successRate;
         let resId = '';
+
         if (isSuccess) {
           const pool = PET_TIERS[nextRarity as keyof typeof PET_TIERS];
           resId = pool[Math.floor(Math.random() * pool.length)];
@@ -261,16 +283,17 @@ export const useTaskStore = create<TaskState>()(
           const pool = PET_TIERS[firstPetRarity as keyof typeof PET_TIERS];
           resId = pool[Math.floor(Math.random() * pool.length)];
         }
+
         currentOwned.push(resId);
         set((s) => ({ userStats: { ...s.userStats, ownedPets: currentOwned } }));
         (get() as any)._syncStats();
+
         if (isSuccess) return { success: true, message: `🔥 ĐỘT PHÁ THÀNH CÔNG! Chúc mừng bạn nhận được ${resId.toUpperCase()}!`, newPetId: resId };
         else return { success: true, message: `💥 THẤT BẠI! Lò nổ, nhận an ủi 1 ${resId.toUpperCase()} (Cùng cấp).`, newPetId: resId };
       },
 
       addTask: (task) => { const newTask = { ...task, createdAt: new Date() }; set((s) => ({ tasks: [...s.tasks, newTask] })); (get() as any)._syncTask(newTask); },
       
-      // 👇 ĐÃ FIX: CHỐT HẠ ĐỒNG BỘ MỖI KHI CẬP NHẬT
       updateTask: (id, updates) => { 
         let updatedTask: Task | null = null;
         set((s) => ({ 
